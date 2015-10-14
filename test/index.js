@@ -116,6 +116,29 @@ describe('gulp-server-livereload', function() {
       });
   });
 
+  it('should also load livereload script over https', function(done) {
+    stream = webserver({
+      https: true,
+      livereload: true
+    });
+
+    stream.write(rootDir);
+
+    request('https://localhost:8000')
+      .get('/')
+      .expect(200, /Hello World/)
+      .end(function(err) {
+        if (err) {
+          return done(err);
+        }
+
+        request('https://localhost:35729')
+          .get('/socket.io.js')
+          .expect(200,/socket\.io/)
+          .end(done);
+      });
+  });
+
 
   it('should show default.html', function(done) {
     stream = webserver({
@@ -178,7 +201,7 @@ describe('gulp-server-livereload', function() {
           .get('/socket.io.js')
           .expect(200,/socket\.io/)
           .end(done);
-      });      
+      });
   });
 
 

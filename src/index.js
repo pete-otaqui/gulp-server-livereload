@@ -88,6 +88,14 @@ module.exports = function(options) {
     openInBrowser = undefined;
   };
 
+  var httpsOptions;
+  if ( config.https ) {
+    httpsOptions = {
+      key: fs.readFileSync(config.https.key || __dirname + '/../ssl/dev-key.pem'),
+      cert: fs.readFileSync(config.https.cert || __dirname + '/../ssl/dev-cert.pem')
+    };
+  }
+
   // connect app
   var app = connect();
   // Proxy requests
@@ -106,7 +114,8 @@ module.exports = function(options) {
 
   // socket.io
   if (config.livereload.enable) {
-    var ioServerOrigin = 'http://' + config.host + ':' + config.livereload.port;
+    var protocol = config.https ? 'http' : 'https';
+    var ioServerOrigin = protocol + '://' + config.host + ':' + config.livereload.port;
 
     var snippetParams = [];
 
@@ -114,11 +123,11 @@ module.exports = function(options) {
       snippetParams.push("extra=capture-console");
     }
 
-    var snippet = 
-      "<script type='text/javascript' async defer src='" 
-      + ioServerOrigin 
-      + "/livereload.js?" 
-      + snippetParams.join('&') 
+    var snippet =
+      "<script type='text/javascript' async defer src='"
+      + ioServerOrigin
+      + "/livereload.js?"
+      + snippetParams.join('&')
       + "'></script>";
 
     app.use(inject({
@@ -179,8 +188,14 @@ module.exports = function(options) {
 
     ioApp.use(serveStatic(BROWSER_SCIPTS_DIR, { index: false }));
 
-    var ioServer = config.livereload.ioServer = 
-      http.createServer(ioApp).listen(config.livereload.port, config.host);
+    var ioServer;
+    if ( config.https ) {
+      ioServer = config.livereload.ioServer =
+        https.createServer(httpsOptions, ioApp).listen(config.livereload.port, config.host);
+    } else {
+      ioServer = config.livereload.ioServer =
+        http.createServer(ioApp).listen(config.livereload.port, config.host);
+    }
 
     io.attach(ioServer);
   }
@@ -188,12 +203,7 @@ module.exports = function(options) {
   // http server
   var webserver = null;
   if (config.https) {
-    var options = {
-      key: fs.readFileSync(config.https.key || __dirname + '/../ssl/dev-key.pem'),
-      cert: fs.readFileSync(config.https.cert || __dirname + '/../ssl/dev-cert.pem')
-    };
-
-    webserver = https.createServer(options, app);
+    webserver = https.createServer(httpsOptions, app);
   }
   else {
     webserver = http.createServer(app);
